@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --forest-dark: #0a1a0f;
+  --forest-mid: #112218;
+  --forest-border: #1e3a28;
+  --ranger-green: #22c55e;
+  --ranger-green-dim: #16a34a;
+  --alert-red: #ef4444;
+  --alert-amber: #f59e0b;
+  --text-primary: #f0fdf4;
+  --text-muted: #86efac;
+  --text-dim: #4ade80;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--forest-dark);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  margin: 0;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--forest-mid);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--forest-border);
+  border-radius: 3px;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.5s infinite;
+}

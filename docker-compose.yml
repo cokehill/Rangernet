@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "4000:4000"
+    environment:
+      - AT_USERNAME=${AT_USERNAME}
+      - AT_API_KEY=${AT_API_KEY}
+      - AT_SENDER_ID=${AT_SENDER_ID}
+      - RANGER_NUMBERS=${RANGER_NUMBERS}
+      - PORT=4000
+    restart: unless-stopped
+
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:4000
+    depends_on:
+      - backend
+    restart: unless-stopped
