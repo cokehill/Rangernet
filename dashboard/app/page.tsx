@@ -255,6 +255,41 @@ export default function Dashboard() {
                         </span>
                       )}
                     </div>
+
+                      {/* Action Buttons */}
+{inc.status !== "resolved" && (
+  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+    {["confirmed", "enroute", "resolved"].map((action) => (
+      <button
+        key={action}
+        onClick={async () => {
+          await fetch(`/api/incidents/${inc.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: action }),
+          });
+          fetchIncidents();
+        }}
+        style={{
+          flex: 1,
+          padding: "4px 0",
+          fontSize: 10,
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          border: `1px solid ${action === "confirmed" ? "#60a5fa" : action === "enroute" ? "#a78bfa" : "#22c55e"}`,
+          borderRadius: 6,
+          background: "transparent",
+          color: action === "confirmed" ? "#60a5fa" : action === "enroute" ? "#a78bfa" : "#22c55e",
+          cursor: "pointer",
+        }}
+      >
+        {action === "confirmed" ? "✓ Confirm" : action === "enroute" ? "🚔 En Route" : "✅ Resolve"}
+      </button>
+    ))}
+  </div>
+)}
+
                     {/* Ranger Response Row */}
                     {inc.rangerResponse && (
                       <div style={{

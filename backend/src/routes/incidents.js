@@ -39,3 +39,18 @@ router.patch("/:id/resolve", (req, res) => {
 });
 
 module.exports = router;
+
+// PATCH /api/incidents/:id/status — update from dashboard
+router.patch("/:id/status", (req, res) => {
+  const incident = incidents.find((i) => i.id === req.params.id);
+  if (!incident) return res.status(404).json({ error: "Not found" });
+  const { status } = req.body;
+  if (!status) return res.status(400).json({ error: "status required" });
+  incident.status = status;
+  incident.rangerResponse = {
+    from: "dashboard",
+    action: status,
+    timestamp: new Date().toISOString(),
+  };
+  res.json(incident);
+});
