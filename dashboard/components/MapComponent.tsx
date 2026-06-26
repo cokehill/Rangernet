@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import type { LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 type Incident = {
@@ -14,7 +15,6 @@ type Incident = {
   rewarded: boolean;
 };
 
-// Approximate zone centroids in Kaduna State
 const ZONE_COORDS: Record<string, [number, number]> = {
   "North Zone (Igabi)": [10.8, 7.45],
   "South Zone (Kachia)": [9.85, 7.95],
@@ -38,7 +38,6 @@ function timeAgo(ts: string) {
 
 export default function MapComponent({ incidents }: { incidents: Incident[] }) {
   useEffect(() => {
-    // Leaflet icon fix for Next.js
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const L = require("leaflet");
     delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -49,9 +48,11 @@ export default function MapComponent({ incidents }: { incidents: Incident[] }) {
     });
   }, []);
 
+  const mapCenter: LatLngExpression = [10.52, 7.43];
+
   return (
     <MapContainer
-      center={[10.52, 7.43]}
+      center={mapCenter}
       zoom={8}
       style={{ height: 340, width: "100%", background: "#0a1a0f" }}
       zoomControl={true}
@@ -62,12 +63,12 @@ export default function MapComponent({ incidents }: { incidents: Incident[] }) {
       />
       {incidents.map((inc) => {
         const coords = ZONE_COORDS[inc.zone] || ZONE_COORDS["Unknown"];
-        // Jitter markers in same zone so they don't stack
         const jitter = () => (Math.random() - 0.5) * 0.15;
+        const markerCenter: LatLngExpression = [coords[0] + jitter(), coords[1] + jitter()];
         return (
           <CircleMarker
             key={inc.id}
-            center={[coords[0] + jitter(), coords[1] + jitter()]}
+            center={markerCenter}
             radius={inc.status === "critical" ? 12 : 8}
             pathOptions={{
               color: STATUS_COLOR[inc.status],
