@@ -14,7 +14,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Africa's Talking USSD callback
-app.post("/ussd", ussdRoutes);
+app.use("/ussd", ussdRoutes);
 
 // Internal API routes
 app.use("/api/sms", smsRoutes);
