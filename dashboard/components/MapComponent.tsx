@@ -11,8 +11,13 @@ type Incident = {
   zone: string;
   reporter: string;
   timestamp: string;
-  status: "open" | "critical" | "resolved";
+  status: "open" | "critical" | "resolved" | "confirmed" | "enroute";
   rewarded: boolean;
+  rangerResponse?: {
+    from: string;
+    action: string;
+    timestamp: string;
+  };
 };
 
 const ZONE_COORDS: Record<string, [number, number]> = {

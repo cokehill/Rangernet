@@ -13,12 +13,18 @@ import {
   Siren,
   Leaf,
   Activity,
+  Truck,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import dynamic from "next/dynamic";
 
-// Leaflet must be client-only
 const MapComponent = dynamic(() => import("../components/MapComponent"), { ssr: false });
+
+type RangerResponse = {
+  from: string;
+  action: string;
+  timestamp: string;
+};
 
 type Incident = {
   id: string;
@@ -26,20 +32,25 @@ type Incident = {
   zone: string;
   reporter: string;
   timestamp: string;
-  status: "open" | "critical" | "resolved";
+  status: "open" | "critical" | "resolved" | "confirmed" | "enroute";
   rewarded: boolean;
+  rangerResponse?: RangerResponse;
 };
 
 const STATUS_COLOR: Record<string, string> = {
   critical: "#ef4444",
   open: "#f59e0b",
   resolved: "#22c55e",
+  confirmed: "#60a5fa",
+  enroute: "#a78bfa",
 };
 
 const STATUS_LABEL: Record<string, string> = {
   critical: "Critical",
   open: "Open",
   resolved: "Resolved",
+  confirmed: "Confirmed",
+  enroute: "En Route",
 };
 
 function timeAgo(ts: string) {
@@ -65,7 +76,7 @@ export default function Dashboard() {
       setIncidents(data);
       setLastRefresh(new Date());
     } catch {
-      // backend not up yet — show empty state
+      // backend not up yet
     } finally {
       setLoading(false);
     }
@@ -73,21 +84,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchIncidents();
-    const interval = setInterval(fetchIncidents, 10000); // poll every 10s
+    const interval = setInterval(fetchIncidents, 5000); // poll every 5s for faster ranger updates
     return () => clearInterval(interval);
   }, [fetchIncidents]);
 
-  const stats = {
-    total: incidents.length,
-    critical: incidents.filter((i) => i.status === "critical").length,
-    open: incidents.filter((i) => i.status === "open").length,
-    rewarded: incidents.filter((i) => i.rewarded).length,
-  };
-
-  // Build bar chart data from incident types
   const typeMap: Record<string, number> = {};
   incidents.forEach((i) => {
-    const label = i.type.replace(/^.{2} /, ""); // strip emoji
+    const label = i.type.replace(/^.{2} /, "");
     typeMap[label] = (typeMap[label] || 0) + 1;
   });
   const chartData = Object.entries(typeMap).map(([name, count]) => ({ name, count }));
@@ -112,15 +115,16 @@ export default function Dashboard() {
     }
   };
 
-  // Demo seed for judges if no backend
   const displayIncidents: Incident[] =
     incidents.length > 0
       ? incidents
       : [
-          { id: "A1B2C3D4", type: "🔫 Suspected Poaching", zone: "North Zone (Igabi)", reporter: "+234801****000", timestamp: new Date(Date.now() - 120000).toISOString(), status: "critical", rewarded: false },
-          { id: "E5F6G7H8", type: "🐘 Animal Near Crops", zone: "South Zone (Kachia)", reporter: "+234802****111", timestamp: new Date(Date.now() - 600000).toISOString(), status: "open", rewarded: true },
+          { id: "A1B2C3D4", type: "🔫 Suspected Poaching", zone: "North Zone (Igabi)", reporter: "+234801****000", timestamp: new Date(Date.now() - 120000).toISOString(), status: "enroute", rewarded: false, rangerResponse: { from: "+2348099999", action: "enroute", timestamp: new Date(Date.now() - 60000).toISOString() } },
+          { id: "E5F6G7H8", type: "🐘 Animal Near Crops", zone: "South Zone (Kachia)", reporter: "+234802****111", timestamp: new Date(Date.now() - 600000).toISOString(), status: "confirmed", rewarded: true, rangerResponse: { from: "+2348088888", action: "confirmed", timestamp: new Date(Date.now() - 300000).toISOString() } },
           { id: "I9J0K1L2", type: "🪓 Illegal Logging", zone: "East Zone (Kaura)", reporter: "+234803****222", timestamp: new Date(Date.now() - 3600000).toISOString(), status: "resolved", rewarded: true },
         ];
+
+  const rangerResponded = displayIncidents.filter(i => i.rangerResponse).length;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--forest-dark)", color: "var(--text-primary)" }}>
@@ -158,11 +162,12 @@ export default function Dashboard() {
       <main style={{ padding: 24, maxWidth: 1280, margin: "0 auto" }}>
 
         {/* Stat Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 24 }}>
           {[
             { label: "Total Reports", value: displayIncidents.length, icon: <Activity size={20} />, color: "#60a5fa" },
             { label: "Critical", value: displayIncidents.filter(i => i.status === "critical").length, icon: <Siren size={20} />, color: "#ef4444" },
             { label: "Open", value: displayIncidents.filter(i => i.status === "open").length, icon: <AlertTriangle size={20} />, color: "#f59e0b" },
+            { label: "Ranger Responses", value: rangerResponded, icon: <Truck size={20} />, color: "#a78bfa" },
             { label: "Rewards Sent", value: displayIncidents.filter(i => i.rewarded).length, icon: <Gift size={20} />, color: "#22c55e" },
           ].map((card) => (
             <div key={card.label} style={{
@@ -172,7 +177,7 @@ export default function Dashboard() {
               padding: "20px 24px",
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <span style={{ fontSize: 12, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{card.label}</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{card.label}</span>
                 <span style={{ color: card.color }}>{card.icon}</span>
               </div>
               <div style={{ fontSize: 36, fontWeight: 700, color: card.color, lineHeight: 1 }}>{card.value}</div>
@@ -210,7 +215,7 @@ export default function Dashboard() {
               <Activity size={16} color="var(--ranger-green)" />
               <span style={{ fontWeight: 600, fontSize: 14 }}>Live Incident Feed</span>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", maxHeight: 340 }}>
+            <div style={{ flex: 1, overflowY: "auto", maxHeight: 380 }}>
               {displayIncidents.length === 0 ? (
                 <div style={{ padding: 32, textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
                   No incidents yet. Dial the USSD code to report.
@@ -223,7 +228,7 @@ export default function Dashboard() {
                     style={{
                       padding: "14px 20px",
                       borderBottom: "1px solid var(--forest-border)",
-                      borderLeft: `3px solid ${STATUS_COLOR[inc.status]}`,
+                      borderLeft: `3px solid ${STATUS_COLOR[inc.status] || "#f59e0b"}`,
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
@@ -232,13 +237,13 @@ export default function Dashboard() {
                         fontSize: 10,
                         padding: "2px 8px",
                         borderRadius: 20,
-                        background: STATUS_COLOR[inc.status] + "22",
-                        color: STATUS_COLOR[inc.status],
+                        background: (STATUS_COLOR[inc.status] || "#f59e0b") + "22",
+                        color: STATUS_COLOR[inc.status] || "#f59e0b",
                         fontWeight: 600,
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
                       }}>
-                        {STATUS_LABEL[inc.status]}
+                        {STATUS_LABEL[inc.status] || inc.status}
                       </span>
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{inc.zone}</div>
@@ -250,6 +255,23 @@ export default function Dashboard() {
                         </span>
                       )}
                     </div>
+                    {/* Ranger Response Row */}
+                    {inc.rangerResponse && (
+                      <div style={{
+                        marginTop: 8,
+                        padding: "6px 10px",
+                        background: (STATUS_COLOR[inc.rangerResponse.action] || "#a78bfa") + "18",
+                        borderRadius: 6,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 11,
+                        color: STATUS_COLOR[inc.rangerResponse.action] || "#a78bfa",
+                      }}>
+                        <Truck size={11} />
+                        Ranger {inc.rangerResponse.action.toUpperCase()} · {timeAgo(inc.rangerResponse.timestamp)}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -316,16 +338,7 @@ export default function Dashboard() {
                   placeholder="+2348012345678"
                   value={broadcastTo}
                   onChange={(e) => setBroadcastTo(e.target.value)}
-                  style={{
-                    width: "100%",
-                    background: "var(--forest-dark)",
-                    border: "1px solid var(--forest-border)",
-                    borderRadius: 8,
-                    padding: "10px 14px",
-                    color: "var(--text-primary)",
-                    fontSize: 14,
-                    outline: "none",
-                  }}
+                  style={{ width: "100%", background: "var(--forest-dark)", border: "1px solid var(--forest-border)", borderRadius: 8, padding: "10px 14px", color: "var(--text-primary)", fontSize: 14, outline: "none" }}
                 />
               </div>
               <div>
@@ -333,44 +346,19 @@ export default function Dashboard() {
                   Message
                 </label>
                 <textarea
-                  rows={5}
+                  rows={4}
                   placeholder="Type alert message to rangers..."
                   value={broadcastMsg}
                   onChange={(e) => setBroadcastMsg(e.target.value)}
-                  style={{
-                    width: "100%",
-                    background: "var(--forest-dark)",
-                    border: "1px solid var(--forest-border)",
-                    borderRadius: 8,
-                    padding: "10px 14px",
-                    color: "var(--text-primary)",
-                    fontSize: 14,
-                    outline: "none",
-                    resize: "vertical",
-                    fontFamily: "inherit",
-                  }}
+                  style={{ width: "100%", background: "var(--forest-dark)", border: "1px solid var(--forest-border)", borderRadius: 8, padding: "10px 14px", color: "var(--text-primary)", fontSize: 14, outline: "none", resize: "vertical", fontFamily: "inherit" }}
                 />
               </div>
               <button
                 onClick={handleBroadcast}
                 disabled={sending || !broadcastMsg.trim() || !broadcastTo.trim()}
-                style={{
-                  background: sending ? "var(--forest-border)" : "var(--ranger-green)",
-                  color: sending ? "var(--text-muted)" : "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "12px 20px",
-                  fontWeight: 600,
-                  fontSize: 14,
-                  cursor: sending ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  transition: "background 0.2s",
-                }}
+                style={{ background: sending ? "var(--forest-border)" : "var(--ranger-green)", color: sending ? "var(--text-muted)" : "#fff", border: "none", borderRadius: 8, padding: "12px 20px", fontWeight: 600, fontSize: 14, cursor: sending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 0.2s" }}
               >
-                {sending ? <RefreshCw size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={16} />}
+                {sending ? <RefreshCw size={16} /> : <Send size={16} />}
                 {sending ? "Sending…" : "Send SMS Alert"}
               </button>
               {sendStatus === "ok" && (
@@ -383,11 +371,19 @@ export default function Dashboard() {
                   <XCircle size={14} /> Failed — check AT credentials
                 </div>
               )}
+              {/* Ranger Reply Instructions */}
+              <div style={{ marginTop: 4, padding: "10px 14px", background: "var(--forest-dark)", borderRadius: 8, border: "1px solid var(--forest-border)" }}>
+                <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Ranger Reply Commands</div>
+                <div style={{ fontSize: 12, color: "var(--text-dim)", lineHeight: 1.8 }}>
+                  <span style={{ color: "#60a5fa" }}>CONFIRM [ID]</span> — Acknowledge alert<br />
+                  <span style={{ color: "#a78bfa" }}>ENROUTE [ID]</span> — On the way<br />
+                  <span style={{ color: "#22c55e" }}>RESOLVED [ID]</span> — Incident closed
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ textAlign: "center", marginTop: 32, fontSize: 12, color: "var(--text-dim)" }}>
           RangerNet · Built with Africa's Talking APIs (USSD · SMS · Airtime) · Kaduna State Wildlife Conservation
         </div>
